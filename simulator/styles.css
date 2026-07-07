@@ -28,6 +28,7 @@ button,
 select,
 input {
   font: inherit;
+  max-width: 100%;
 }
 
 .app-shell {
@@ -46,6 +47,7 @@ input {
   border-radius: var(--radius);
   padding: 12px;
   overflow: auto;
+  min-width: 0;
 }
 
 .controls-panel,
@@ -95,6 +97,7 @@ input {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 10px 12px;
+  min-width: 0;
 }
 
 .toolbar button,
@@ -111,6 +114,64 @@ input {
 .toolbar button:hover,
 .control-button:hover {
   background: var(--panel-soft);
+}
+
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 520px;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pipeline-step {
+  display: inline-grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  min-width: 128px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--muted);
+  padding: 4px 8px;
+}
+
+.pipeline-step strong {
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-step small {
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.pipeline-step.active {
+  border-color: #a7c1ec;
+  background: #eef5ff;
+}
+
+.pipeline-step.done {
+  border-color: #a7d8b5;
+  background: #edf8f0;
+}
+
+.pipeline-step.skipped {
+  background: #f8fafc;
+}
+
+.pipeline-step.blocked {
+  border-color: #f0b8b0;
+  background: #fff0ee;
 }
 
 .status-chip {
@@ -147,6 +208,7 @@ input {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .info-list {
@@ -157,6 +219,7 @@ input {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .list-note {
@@ -272,63 +335,44 @@ input {
   padding: 3px 8px;
 }
 
-.matrix-planes {
+.matrix-list {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
-.matrix-plane {
+.matrix-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
-  overflow: hidden;
+  padding: 6px;
 }
 
-.matrix-plane-title {
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-soft);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 7px 8px;
-}
-
-.matrix-grid {
+.matrix-rule-vector {
   display: grid;
-  grid-template-columns: minmax(74px, 0.85fr) repeat(2, minmax(76px, 1fr));
+  gap: 2px;
+  min-width: 0;
 }
 
-.matrix-axis-corner,
-.matrix-axis-label,
-.matrix-cell {
-  min-height: 38px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+.matrix-rule-vector strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
-.matrix-grid > :nth-child(3n) {
-  border-right: 0;
-}
-
-.matrix-grid > :nth-last-child(-n + 3) {
-  border-bottom: 0;
-}
-
-.matrix-axis-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
+.matrix-rule-vector span {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.2;
-  padding: 6px;
-  text-align: center;
+  overflow-wrap: anywhere;
 }
 
-.matrix-axis-label.row-label {
-  justify-content: flex-start;
-  text-align: left;
+.matrix-rule .matrix-cell {
+  min-width: 96px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
 .matrix-cell {
@@ -337,10 +381,9 @@ input {
   align-content: center;
   justify-items: center;
   width: 100%;
-  min-height: 42px;
-  border-top: 0;
-  border-left: 0;
-  border-radius: 0;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   background: #ffffff;
   color: var(--text);
   cursor: pointer;
@@ -418,5 +461,26 @@ input {
   .toolbar {
     grid-column: auto;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    padding: 8px;
+  }
+
+  .matrix-rule {
+    grid-template-columns: 1fr;
+  }
+
+  .matrix-rule .matrix-cell {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .toolbar .status-chip {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }

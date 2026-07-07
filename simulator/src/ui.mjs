@@ -163,24 +163,27 @@ function renderHost(host) {
 
 function renderMatrix(state) {
   const active = state.currentVector?.ready ? state.currentVector.stable.join(',') : '';
-  const axisValues = ['up', 'down'];
+  const rows = state.matrix.map((rule, index) => {
+    const entry = {
+      health: rule.health,
+      key: rule.health.join(','),
+      index,
+      rule
+    };
+    const details = state.sequence
+      .map((layer, index) => `${layer} ${rule.health[index]}`)
+      .join(', ');
 
-  const planes = axisValues.map((storage) => `
-    <div class="matrix-plane" data-role="matrix-plane">
-      <div class="matrix-plane-title">storage = ${storage}</div>
-      <div class="matrix-grid">
-        <div class="matrix-axis-corner"></div>
-        ${axisValues.map((tenant) => `<div class="matrix-axis-label">tenant ${tenant}</div>`).join('')}
-        ${axisValues.map((manage) => `
-          <div class="matrix-axis-label row-label">manage ${manage}</div>
-          ${axisValues.map((tenant) => renderMatrixCell(
-            findMatrixRule(state.matrix, state.sequence, { manage, tenant, storage }),
-            active
-          )).join('')}
-        `).join('')}
+    return `
+      <div class="matrix-rule" data-role="matrix-rule">
+        <div class="matrix-rule-vector">
+          <strong>health: ${formatVector(rule.health)}</strong>
+          <span>${details}</span>
+        </div>
+        ${renderMatrixCell(entry, active)}
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   return `
     <div class="matrix-meta">
@@ -188,7 +191,7 @@ function renderMatrix(state) {
       <span>${matrixPolicyLabel(state.matrix)}</span>
       <span>2 x 2 x 2 = 8</span>
     </div>
-    <div class="matrix-planes">${planes}</div>
+    <div class="matrix-list">${rows}</div>
   `;
 }
 
@@ -306,14 +309,100 @@ function renderEventLog(state) {
   `).join('');
 }
 
-function renderSummary(state) {
-  const vector = state.currentVector ? state.currentVector.stable.map((value) => value ?? 'unstable').join(' / ') : 'нет данных';
-  const action = state.currentMatrixResult ? state.currentMatrixResult.action.join(', ') || '[]' : 'нет данных';
-  const fencing = state.fencing.enabled ? state.fencing.status : 'disabled';
-  const notification = state.notifications.at(-1)?.status ?? 'нет';
-  const vmoves = state.vmoves.length === 0 ? 'нет' : state.vmoves.map((vmove) => `${vmove.instanceName}:${vmove.status}`).join(', ');
+function hasHealthSamples(state) {
+  return state.sequence.some((layer) => (state.healthHistory[state.activeHost]?.[layer] ?? []).length > 0);
+}
 
-  return `Health ${vector} -> Matrix ${action} -> Fencing ${fencing} -> Notification ${notification} -> VMoves ${vmoves}`;
+function pipelineSteps(state) {
+  const samplesReady = hasHealthSamples(state);
+  const vectorReady = state.currentVector?.ready === true;
+  const hasVector = Boolean(state.currentVector);
+  const hasMatrix = Boolean(state.currentMatrixResult);
+  const needsRecovery = state.currentMatrixResult?.action.includes('recovery') === true;
+  const fencingBlocked = ['failed', 'unreachable'].includes(state.fencing.status);
+  const fencingSucceeded = state.fencing.status === 'succeeded';
+  const notification = state.notifications.at(-1);
+  const hasNotification = Boolean(notification);
+  const taskflowStarted = Boolean(state.taskflow);
+  const vmoveFailed = state.vmoves.some((vmove) => vmove.status === 'failed');
+  const vmoveSucceeded = state.vmoves.length > 0 && state.vmoves.every((vmove) => vmove.status === 'succeeded');
+  const consulStatus = state.phase === 'consul-observe' ? 'active' : samplesReady ? 'done' : 'pending';
+  const healthStatus = !samplesReady
+    ? 'pending'
+    : state.phase === 'health-evaluate' || (hasVector && !vectorReady)
+      ? 'active'
+      : vectorReady ? 'done' : 'pending';
+  const matrixStatus = !vectorReady ? 'pending' : hasMatrix ? 'done' : 'active';
+  const fencingStatus = !hasMatrix
+    ? 'pending'
+    : !needsRecovery || !state.fencing.enabled
+      ? 'skipped'
+      : fencingBlocked ? 'blocked' : fencingSucceeded ? 'done' : 'active';
+  const notificationStatus = !hasMatrix
+    ? 'pending'
+    : !needsRecovery
+      ? 'skipped'
+      : state.fencing.enabled && !fencingSucceeded
+        ? 'pending'
+        : hasNotification && state.phase === 'masakari-start' ? 'active' : hasNotification ? 'done' : 'pending';
+  const taskflowStatus = !hasMatrix
+    ? 'pending'
+    : !needsRecovery
+      ? 'skipped'
+      : !hasNotification
+        ? 'pending'
+        : taskflowStarted && state.taskflow.currentStep !== 'finished' ? 'active' : taskflowStarted ? 'done' : 'pending';
+  const evacuateStatus = !hasMatrix
+    ? 'pending'
+    : !needsRecovery
+      ? 'skipped'
+      : !taskflowStarted
+        ? 'pending'
+        : state.phase === 'taskflow-evacuate' ? 'active' : vmoveFailed ? 'blocked' : vmoveSucceeded ? 'done' : 'pending';
+
+  return [
+    {
+      label: 'Consul observe',
+      status: consulStatus
+    },
+    {
+      label: 'Health vector',
+      status: healthStatus
+    },
+    {
+      label: 'Matrix match',
+      status: matrixStatus
+    },
+    {
+      label: 'Redfish fencing',
+      status: fencingStatus
+    },
+    {
+      label: 'Masakari notification',
+      status: notificationStatus
+    },
+    {
+      label: 'Taskflow',
+      status: taskflowStatus
+    },
+    {
+      label: 'Nova evacuate',
+      status: evacuateStatus
+    }
+  ];
+}
+
+function renderPipeline(state) {
+  return `
+    <div class="pipeline" data-role="pipeline">
+      ${pipelineSteps(state).map((step) => `
+        <span class="pipeline-step ${step.status}" data-role="pipeline-step">
+          <strong>${step.label}</strong>
+          <small>${step.status}</small>
+        </span>
+      `).join('')}
+    </div>
+  `;
 }
 
 function setByPath(target, path, value) {
@@ -376,7 +465,7 @@ export function renderApp(root, state, dispatch) {
     <section class="toolbar">
       <button type="button" data-role="reset">Сброс</button>
       <button type="button" data-role="step">Шаг</button>
-      <span class="status-chip">${renderSummary(state)}</span>
+      ${renderPipeline(state)}
     </section>
   `;
 

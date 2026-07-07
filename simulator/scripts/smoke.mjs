@@ -72,11 +72,12 @@ const requiredUiMarkers = [
   'sequence: [manage, tenant, storage]',
   'policy: default matrix',
   '2 x 2 x 2 = 8',
-  'data-role="matrix-plane"',
-  'storage = up',
-  'storage = down',
+  'data-role="matrix-rule"',
+  'health: [up, up, up]',
+  'health: [up, up, down]',
   'manage up',
   'tenant down',
+  'storage down',
   'Сети и интерфейсы',
   'сеть управления',
   'пользовательский трафик VM',
@@ -86,11 +87,20 @@ const requiredUiMarkers = [
   'data-role="fencing-result"',
   'driver redfish',
   '<option value="unreachable" >unreachable</option>',
-  'Health нет данных -> Matrix нет данных -> Fencing disabled',
   '<details class="panel-section" open>',
   '<details class="panel-section">',
   '<summary>Masakari monitor</summary>',
   '<summary>Watcher</summary>',
+  'data-role="pipeline-step"',
+  'Consul observe',
+  'Health vector',
+  'Matrix match',
+  'Redfish fencing',
+  'Masakari notification',
+  'Taskflow',
+  'Nova evacuate',
+  'pipeline-step active',
+  'pipeline-step pending',
   'Сброс',
   'Шаг'
 ];
@@ -105,6 +115,10 @@ if (renderedRoot.innerHTML.indexOf('<h3>Health vector</h3>') > renderedRoot.inne
   throw new Error('Fencing panel must render below Health vector');
 }
 
+if (renderedRoot.innerHTML.includes('data-role="matrix-plane"')) {
+  throw new Error('Matrix must not privilege one interface as a fixed plane');
+}
+
 const redfishSuccessRoot = new FakeRoot();
 renderApp(redfishSuccessRoot, createSimulation('redfish-fencing-success'), () => {});
 
@@ -115,6 +129,25 @@ for (const expected of [
 ]) {
   if (!redfishSuccessRoot.innerHTML.includes(expected)) {
     throw new Error(`redfish fencing UI must contain ${expected}`);
+  }
+}
+
+const redfishFailedState = createSimulation('redfish-fencing-failed');
+for (let i = 0; i < 4; i += 1) {
+  stepSimulation(redfishFailedState);
+}
+
+const redfishFailedRoot = new FakeRoot();
+renderApp(redfishFailedRoot, redfishFailedState, () => {});
+
+for (const expected of [
+  'Redfish fencing',
+  'pipeline-step blocked',
+  'Masakari notification',
+  'pipeline-step pending'
+]) {
+  if (!redfishFailedRoot.innerHTML.includes(expected)) {
+    throw new Error(`redfish failed pipeline must contain ${expected}`);
   }
 }
 
