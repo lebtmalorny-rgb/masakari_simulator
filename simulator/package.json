@@ -1,0 +1,10 @@
+{
+  "name": "masakari-state-machine-simulator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "verify": "npm test && npm run smoke"
+  }
+}
