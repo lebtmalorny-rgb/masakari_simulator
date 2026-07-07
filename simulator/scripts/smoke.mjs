@@ -65,8 +65,17 @@ const requiredUiMarkers = [
   'data-role="watcher-toggle"',
   'data-role="health-vector"',
   'Как пользоваться',
+  'Если нужно проверить другую policy',
+  'class="list-note"',
+  'Это меняет policy, а не состояние интерфейсов',
   'sequence: [manage, tenant, storage]',
-  'health: [up, up, up] -> action: []',
+  'policy: default matrix',
+  '2 x 2 x 2 = 8',
+  'data-role="matrix-plane"',
+  'storage = up',
+  'storage = down',
+  'manage up',
+  'tenant down',
   'Сети и интерфейсы',
   'сеть управления',
   'пользовательский трафик VM',
@@ -82,6 +91,19 @@ const requiredUiMarkers = [
 for (const expected of requiredUiMarkers) {
   if (!renderedRoot.innerHTML.includes(expected)) {
     throw new Error(`rendered UI must contain ${expected}`);
+  }
+}
+
+const customPolicyRoot = new FakeRoot();
+renderApp(customPolicyRoot, createSimulation('custom-matrix-policy'), () => {});
+
+for (const expected of [
+  'policy: custom matrix',
+  'matrix-cell changed',
+  'health: [up, down, up] action: [recovery]'
+]) {
+  if (!customPolicyRoot.innerHTML.includes(expected)) {
+    throw new Error(`custom matrix UI must contain ${expected}`);
   }
 }
 

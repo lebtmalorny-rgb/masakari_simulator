@@ -1,5 +1,6 @@
 import { listScenarios } from './scenarios.mjs';
 import { createSimulation, resetSimulation, stepSimulation, toggleInterface } from './simulation.mjs';
+import { DEFAULT_MATRIX } from './domain.mjs';
 
 function statusClass(value) {
   if (value === 'up' || value === 'enabled' || value === 'finished' || value === 'succeeded') {
@@ -47,6 +48,78 @@ function interfaceDetail(layer) {
   };
 }
 
+function findMatrixRule(matrix, sequence, valuesByLayer) {
+  const health = sequence.map((layer) => valuesByLayer[layer]);
+  const index = matrix.findIndex((rule) =>
+    Array.isArray(rule.health) &&
+    rule.health.length === health.length &&
+    rule.health.every((value, valueIndex) => value === health[valueIndex])
+  );
+
+  return {
+    health,
+    key: health.join(','),
+    index,
+    rule: index >= 0 ? matrix[index] : null
+  };
+}
+
+function findMatrixRuleByHealth(matrix, health) {
+  return matrix.find((rule) =>
+    Array.isArray(rule.health) &&
+    rule.health.length === health.length &&
+    rule.health.every((value, valueIndex) => value === health[valueIndex])
+  );
+}
+
+function sameAction(left, right) {
+  return Array.isArray(left) &&
+    Array.isArray(right) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index]);
+}
+
+function matrixRuleChangedFromDefault(rule) {
+  if (!rule) {
+    return false;
+  }
+
+  const defaultRule = findMatrixRuleByHealth(DEFAULT_MATRIX, rule.health);
+  return !defaultRule || !sameAction(rule.action, defaultRule.action);
+}
+
+function matrixPolicyLabel(matrix) {
+  return matrix.some(matrixRuleChangedFromDefault) ? 'policy: custom matrix' : 'policy: default matrix';
+}
+
+function renderMatrixCell(entry, activeKey) {
+  if (!entry.rule) {
+    return `
+      <div class="matrix-cell missing" title="health: ${formatVector(entry.health)}">
+        <span>missing</span>
+      </div>
+    `;
+  }
+
+  const action = formatAction(entry.rule.action);
+  const actionClass = entry.rule.action.includes('recovery') ? 'bad' : 'ok';
+  const changedClass = matrixRuleChangedFromDefault(entry.rule) ? 'changed' : '';
+  const label = `health: ${formatVector(entry.health)} action: ${action}`;
+
+  return `
+    <button
+      class="matrix-cell ${changedClass} ${actionClass} ${entry.key === activeKey ? 'active' : ''}"
+      type="button"
+      data-role="matrix-toggle"
+      data-row="${entry.index}"
+      title="${label}"
+      aria-label="${label}"
+    >
+      <span>${action}</span>
+    </button>
+  `;
+}
+
 function renderScenarioOptions(currentId) {
   return listScenarios()
     .map((scenario) => `<option value="${scenario.id}" ${scenario.id === currentId ? 'selected' : ''}>${scenario.name}</option>`)
@@ -90,16 +163,33 @@ function renderHost(host) {
 
 function renderMatrix(state) {
   const active = state.currentVector?.ready ? state.currentVector.stable.join(',') : '';
+  const axisValues = ['up', 'down'];
 
-  return state.matrix.map((rule, index) => {
-    const key = rule.health.join(',');
-    return `
-      <div class="matrix-row ${key === active ? 'active' : ''}">
-        <span class="rule-text">health: ${formatVector(rule.health)} -> action: ${formatAction(rule.action)}</span>
-        <button class="control-button" type="button" data-role="matrix-toggle" data-row="${index}">${formatAction(rule.action)}</button>
+  const planes = axisValues.map((storage) => `
+    <div class="matrix-plane" data-role="matrix-plane">
+      <div class="matrix-plane-title">storage = ${storage}</div>
+      <div class="matrix-grid">
+        <div class="matrix-axis-corner"></div>
+        ${axisValues.map((tenant) => `<div class="matrix-axis-label">tenant ${tenant}</div>`).join('')}
+        ${axisValues.map((manage) => `
+          <div class="matrix-axis-label row-label">manage ${manage}</div>
+          ${axisValues.map((tenant) => renderMatrixCell(
+            findMatrixRule(state.matrix, state.sequence, { manage, tenant, storage }),
+            active
+          )).join('')}
+        `).join('')}
       </div>
-    `;
-  }).join('');
+    </div>
+  `).join('');
+
+  return `
+    <div class="matrix-meta">
+      <span>sequence: ${formatList(state.sequence)}</span>
+      <span>${matrixPolicyLabel(state.matrix)}</span>
+      <span>2 x 2 x 2 = 8</span>
+    </div>
+    <div class="matrix-planes">${planes}</div>
+  `;
 }
 
 function renderUsageGuide() {
@@ -108,7 +198,10 @@ function renderUsageGuide() {
       <li>Выберите сценарий.</li>
       <li>Переключите интерфейсы исходного хоста между up и down.</li>
       <li>Измените monitoring_samples, если нужно увидеть нестабильный vector.</li>
-      <li>Переключите action в matrix между [] и [recovery].</li>
+      <li>
+        Если нужно проверить другую policy, переключите ячейку matrix между [] и [recovery].
+        <small class="list-note">Это меняет policy, а не состояние интерфейсов: так можно проверить, какой action будет выбран для того же health.</small>
+      </li>
       <li>Нажимайте кнопку Шаг до notification, taskflow, evacuation или решения без action.</li>
     </ol>
   `;
@@ -222,12 +315,12 @@ export function renderApp(root, state, dispatch) {
       <select data-role="scenario-select">${renderScenarioOptions(state.scenarioId)}</select>
       <h3>Как пользоваться</h3>
       ${renderUsageGuide()}
-      <h3>Health vector</h3>
-      ${renderHealthVector(state)}
       <details class="panel-section" open>
         <summary>Matrix</summary>
         <div class="matrix-table" data-role="matrix">${renderMatrix(state)}</div>
       </details>
+      <h3>Health vector</h3>
+      ${renderHealthVector(state)}
       <details class="panel-section">
         <summary>Сети и интерфейсы</summary>
         ${renderNetworkLegend(state)}
@@ -333,7 +426,7 @@ export function createAppController(root, initialScenarioId = 'healthy-baseline'
       const rule = state.matrix[action.row];
       rule.action = rule.action.includes('recovery') ? [] : ['recovery'];
       state.phase = 'consul-observe';
-      state.currentExplanation = `matrix row ${action.row + 1} changed to ${rule.action.includes('recovery') ? 'recovery' : '[]'}`;
+      state.currentExplanation = `matrix cell ${formatVector(rule.health)} changed to ${formatAction(rule.action)}`;
     }
 
     if (action.type === 'config-number') {

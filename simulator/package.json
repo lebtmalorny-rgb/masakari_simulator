@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "serve": "python3 -m http.server 8765",
     "test": "node --test test/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "verify": "npm test && npm run smoke"

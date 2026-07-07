@@ -4,16 +4,26 @@
 
 ## Запуск
 
-Откройте `simulator/index.html` в браузере.
+Запустите статический сервер из каталога `simulator`:
 
-Backend не нужен. npm-зависимости не нужны.
+```bash
+npm run serve
+```
+
+Затем откройте:
+
+```text
+http://localhost:8765/
+```
+
+Backend не нужен. npm-зависимости не нужны. Сервер только раздает статические файлы, чтобы браузер корректно загрузил ES modules.
 
 ## Как задавать условия
 
 1. Выберите сценарий в блоке `Сценарии`.
 2. В блоке `Топология` переключите интерфейсы нужного compute-хоста между `up` и `down`.
 3. Если нужно проверить debounce/stability, измените `monitoring_samples`.
-4. Если нужно проверить другую policy, переключите action в строке `Matrix` между `[]` и `[recovery]`.
+4. Если нужно проверить другую policy, переключите ячейку `Matrix` между `[]` и `[recovery]`. Это меняет policy, а не состояние интерфейсов.
 5. Нажимайте `Шаг`, пока симуляция не пройдет Consul observation, health vector, matrix matching, Masakari notification, taskflow и evacuation.
 6. Используйте `Сброс`, чтобы вернуть выбранный сценарий в исходное состояние.
 
@@ -48,7 +58,27 @@ health: [up, down, up] -> action: []
 
 Если action содержит `recovery`, hostmonitor создает Masakari `COMPUTE_HOST STOPPED` notification. Если action пустой, recovery не запускается.
 
-Если последние `monitoring_samples` наблюдений по интерфейсу не одинаковые, измерение считается `unstable`. Такой vector не совпадает со строкой matrix, пока не станет стабильным.
+Если последние `monitoring_samples` наблюдений по интерфейсу не одинаковые, измерение считается `unstable`. Такой vector не совпадает с ячейкой matrix, пока не станет стабильным.
+
+В UI matrix показана как две плоскости:
+
+- `storage = up`;
+- `storage = down`.
+
+Внутри каждой плоскости строки соответствуют `manage = up/down`, а колонки соответствуют `tenant = up/down`. Так видно, откуда берутся восемь состояний:
+
+```text
+2 x 2 x 2 = 8
+```
+
+Каждая ячейка показывает action для одного health vector и переключается между `[]` и `[recovery]`. Переключение ячейки меняет policy, а не состояние интерфейсов.
+
+Над matrix UI показывает policy:
+
+- `policy: default matrix` — текущая matrix совпадает с default policy;
+- `policy: custom matrix` — хотя бы одна ячейка отличается от default policy.
+
+Измененные от default policy ячейки подсвечиваются янтарной отметкой.
 
 ## Что означает action в matrix
 
@@ -146,10 +176,11 @@ interfaces -> health vector -> matrix action -> Masakari notification -> evacuat
 ### Измененная matrix policy
 
 1. Выберите сценарий `Измененная политика matrix`.
-2. Найдите строку `health: [up, down, up]`.
-3. Переключите action в `[recovery]`, если он еще не включен.
-4. Нажимайте `Шаг`.
-5. Tenant-only отказ начнет запускать recovery, потому что policy изменена.
+2. В matrix найдите плоскость `storage = up`.
+3. В этой плоскости найдите ячейку `manage = up`, `tenant = down`.
+4. Переключите action в `[recovery]`, если он еще не включен.
+5. Нажимайте `Шаг`.
+6. Tenant-only отказ начнет запускать recovery, потому что policy изменена.
 
 ## Что моделируется точно
 

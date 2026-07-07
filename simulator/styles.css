@@ -159,6 +159,14 @@ input {
   line-height: 1.3;
 }
 
+.list-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .interface-label {
   display: grid;
   gap: 2px;
@@ -246,20 +254,144 @@ input {
 
 .matrix-table {
   display: grid;
+  gap: 10px;
+}
+
+.matrix-meta {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
-.matrix-row {
-  grid-template-columns: minmax(120px, 1fr) minmax(90px, auto);
-  padding: 6px;
+.matrix-meta span {
   border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #ffffff;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  padding: 3px 8px;
 }
 
-.matrix-row.active {
+.matrix-planes {
+  display: grid;
+  gap: 10px;
+}
+
+.matrix-plane {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.matrix-plane-title {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 8px;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.85fr) repeat(2, minmax(76px, 1fr));
+}
+
+.matrix-axis-corner,
+.matrix-axis-label,
+.matrix-cell {
+  min-height: 38px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.matrix-grid > :nth-child(3n) {
+  border-right: 0;
+}
+
+.matrix-grid > :nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.matrix-axis-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px;
+  text-align: center;
+}
+
+.matrix-axis-label.row-label {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.matrix-cell {
+  display: grid;
+  position: relative;
+  align-content: center;
+  justify-items: center;
+  width: 100%;
+  min-height: 42px;
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px;
+  text-align: center;
+}
+
+.matrix-cell:hover {
+  background: var(--panel-soft);
+}
+
+.matrix-cell.ok {
+  color: var(--ok);
+  background: #edf8f0;
+}
+
+.matrix-cell.bad {
+  color: var(--bad);
+  background: #fff0ee;
+}
+
+.matrix-cell.active {
   border-color: var(--info);
-  box-shadow: 0 0 0 2px rgba(36, 84, 166, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(36, 84, 166, 0.38);
+}
+
+.matrix-cell.changed {
+  outline: 2px solid rgba(183, 121, 31, 0.45);
+  outline-offset: -4px;
+}
+
+.matrix-cell.changed::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--warn);
+}
+
+.matrix-cell span {
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.matrix-cell.missing {
+  color: var(--warn);
+  cursor: default;
 }
 
 .log-list {
