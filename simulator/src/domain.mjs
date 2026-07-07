@@ -25,6 +25,17 @@ export const DEFAULT_MONITOR_CONFIG = {
   }
 };
 
+export const DEFAULT_FENCING_CONFIG = {
+  enabled: false,
+  driver: 'redfish',
+  endpoint: 'https://bmc.example/redfish/v1/Systems/compute-1',
+  timeout: 60,
+  verifyPowerOff: true,
+  expectedResult: 'success',
+  status: 'not-run',
+  lastError: ''
+};
+
 export const DEFAULT_MASAKARI_CONFIG = {
   duplicateNotificationDetectionInterval: 180,
   waitPeriodAfterServiceUpdate: 180,

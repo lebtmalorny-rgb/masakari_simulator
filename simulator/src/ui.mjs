@@ -198,6 +198,7 @@ function renderUsageGuide() {
       <li>Выберите сценарий.</li>
       <li>Переключите интерфейсы исходного хоста между up и down.</li>
       <li>Измените monitoring_samples, если нужно увидеть нестабильный vector.</li>
+      <li>Включите Redfish fencing, если нужно проверить gate перед Masakari notification.</li>
       <li>
         Если нужно проверить другую policy, переключите ячейку matrix между [] и [recovery].
         <small class="list-note">Это меняет policy, а не состояние интерфейсов: так можно проверить, какой action будет выбран для того же health.</small>
@@ -259,6 +260,23 @@ function renderMonitorConfig(state) {
   `;
 }
 
+function renderFencingConfig(state) {
+  const resultOptions = ['success', 'failed', 'unreachable']
+    .map((result) => `<option value="${result}" ${state.fencing.expectedResult === result ? 'selected' : ''}>${result}</option>`)
+    .join('');
+
+  return `
+    <div class="stack" data-role="fencing-config">
+      <label class="config-row"><span>enabled</span><input data-role="fencing-toggle" data-path="enabled" type="checkbox" ${state.fencing.enabled ? 'checked' : ''}></label>
+      <div class="config-row"><span>driver</span><span class="status-chip">driver ${state.fencing.driver}</span></div>
+      <label class="config-row"><span>expected result</span><select data-role="fencing-result" data-path="expectedResult">${resultOptions}</select></label>
+      <div class="config-row"><span>status</span><span class="status-chip ${statusClass(state.fencing.status)}">${state.fencing.status}</span></div>
+      <div class="config-row"><span>verify_power_off</span><span class="status-chip">${state.fencing.verifyPowerOff}</span></div>
+      <div class="help-text">Redfish fencing is optional in the simulator. Best practice is to require successful fencing before evacuation.</div>
+    </div>
+  `;
+}
+
 function renderMasakariConfig(state) {
   return `
     <div class="config-row"><span>duplicate_notification_detection_interval</span><span class="status-chip">${state.masakariConfig.duplicateNotificationDetectionInterval}</span></div>
@@ -291,10 +309,11 @@ function renderEventLog(state) {
 function renderSummary(state) {
   const vector = state.currentVector ? state.currentVector.stable.map((value) => value ?? 'unstable').join(' / ') : 'нет данных';
   const action = state.currentMatrixResult ? state.currentMatrixResult.action.join(', ') || '[]' : 'нет данных';
+  const fencing = state.fencing.enabled ? state.fencing.status : 'disabled';
   const notification = state.notifications.at(-1)?.status ?? 'нет';
   const vmoves = state.vmoves.length === 0 ? 'нет' : state.vmoves.map((vmove) => `${vmove.instanceName}:${vmove.status}`).join(', ');
 
-  return `Health ${vector} -> Matrix ${action} -> Notification ${notification} -> VMoves ${vmoves}`;
+  return `Health ${vector} -> Matrix ${action} -> Fencing ${fencing} -> Notification ${notification} -> VMoves ${vmoves}`;
 }
 
 function setByPath(target, path, value) {
@@ -321,6 +340,10 @@ export function renderApp(root, state, dispatch) {
       </details>
       <h3>Health vector</h3>
       ${renderHealthVector(state)}
+      <details class="panel-section" open>
+        <summary>Fencing</summary>
+        ${renderFencingConfig(state)}
+      </details>
       <details class="panel-section">
         <summary>Сети и интерфейсы</summary>
         ${renderNetworkLegend(state)}
@@ -400,6 +423,26 @@ export function renderApp(root, state, dispatch) {
       });
     });
   }
+
+  for (const input of root.querySelectorAll('[data-role="fencing-toggle"]')) {
+    input.addEventListener('change', () => {
+      dispatch({
+        type: 'fencing-update',
+        path: input.dataset.path,
+        value: input.checked
+      });
+    });
+  }
+
+  for (const select of root.querySelectorAll('[data-role="fencing-result"]')) {
+    select.addEventListener('change', () => {
+      dispatch({
+        type: 'fencing-update',
+        path: select.dataset.path,
+        value: select.value
+      });
+    });
+  }
 }
 
 export function createAppController(root, initialScenarioId = 'healthy-baseline') {
@@ -438,6 +481,14 @@ export function createAppController(root, initialScenarioId = 'healthy-baseline'
     if (action.type === 'watcher-toggle') {
       state.watcher[action.path] = action.value;
       state.currentExplanation = `watcher.${action.path} changed to ${action.value}`;
+    }
+
+    if (action.type === 'fencing-update') {
+      state.fencing[action.path] = action.value;
+      state.fencing.status = 'not-run';
+      state.fencing.lastError = '';
+      state.phase = 'consul-observe';
+      state.currentExplanation = `fencing.${action.path} changed to ${action.value}`;
     }
 
     renderApp(root, state, dispatch);

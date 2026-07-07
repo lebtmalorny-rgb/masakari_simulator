@@ -1,5 +1,6 @@
 import {
   DEFAULT_MASAKARI_CONFIG,
+  DEFAULT_FENCING_CONFIG,
   DEFAULT_MATRIX,
   DEFAULT_MONITOR_CONFIG,
   DEFAULT_WATCHER_CONFIG,
@@ -79,6 +80,7 @@ function baseScenario(id, name) {
     sequence: [...STANDARD_LAYERS],
     matrix: deepClone(DEFAULT_MATRIX),
     monitorConfig: deepClone(DEFAULT_MONITOR_CONFIG),
+    fencing: deepClone(DEFAULT_FENCING_CONFIG),
     masakariConfig: deepClone(DEFAULT_MASAKARI_CONFIG),
     watcher: deepClone(DEFAULT_WATCHER_CONFIG),
     hosts: baseHosts(),
@@ -106,7 +108,9 @@ const scenarios = [
   baseScenario('no-valid-destination', 'Нет подходящего destination'),
   baseScenario('reserved-host-recovery', 'Восстановление через reserved host'),
   baseScenario('watcher-conflict', 'Конфликт с Watcher'),
-  baseScenario('custom-matrix-policy', 'Измененная политика matrix')
+  baseScenario('custom-matrix-policy', 'Измененная политика matrix'),
+  baseScenario('redfish-fencing-success', 'Redfish fencing успешен'),
+  baseScenario('redfish-fencing-failed', 'Redfish fencing failed')
 ];
 
 scenarios.find((scenario) => scenario.id === 'storage-isolated').hosts[0].interfaces.storage = 'down';
@@ -174,6 +178,18 @@ customMatrix.matrix = customMatrix.matrix.map((rule) => {
   return rule;
 });
 customMatrix.scenarioExpectation = 'recovery';
+
+const redfishSuccess = scenarios.find((scenario) => scenario.id === 'redfish-fencing-success');
+redfishSuccess.hosts[0].interfaces.storage = 'down';
+redfishSuccess.fencing.enabled = true;
+redfishSuccess.fencing.expectedResult = 'success';
+redfishSuccess.scenarioExpectation = 'recovery-with-fencing';
+
+const redfishFailed = scenarios.find((scenario) => scenario.id === 'redfish-fencing-failed');
+redfishFailed.hosts[0].interfaces.storage = 'down';
+redfishFailed.fencing.enabled = true;
+redfishFailed.fencing.expectedResult = 'failed';
+redfishFailed.scenarioExpectation = 'fencing-failed';
 
 export function listScenarios() {
   return scenarios.map((scenario) => ({ id: scenario.id, name: scenario.name }));

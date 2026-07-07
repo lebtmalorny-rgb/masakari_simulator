@@ -1,6 +1,7 @@
 import { createLogEntry } from './domain.mjs';
 import { getScenario } from './scenarios.mjs';
 import { addConsulObservation, computeStableVector, evaluateMatrix, validateMatrix } from './health.mjs';
+import { fencingWarning, runRedfishFencing } from './fencing.mjs';
 import {
   advanceTaskflow,
   createHostNotification,
@@ -98,10 +99,31 @@ function evaluateHealthAndMaybeNotify(state) {
     return;
   }
 
+  if (state.fencing.enabled) {
+    state.fencing.status = 'pending';
+    state.fencing.lastError = '';
+    state.currentExplanation = 'matrix action contains recovery; waiting for Redfish fencing';
+    state.phase = 'fencing';
+    return;
+  }
+
   const notification = createHostNotification(state, state.activeHost, vector.stable, matrixResult.action);
   state.notifications.push(notification);
   state.activeNotificationId = notification.uuid;
-  state.currentExplanation = 'matrix action contains recovery; Masakari notification created';
+  state.currentExplanation = 'matrix action contains recovery; fencing disabled; Masakari notification created';
+  state.phase = 'masakari-start';
+}
+
+function createRecoveryNotificationAfterFencing(state) {
+  const notification = createHostNotification(
+    state,
+    state.activeHost,
+    state.currentVector.stable,
+    state.currentMatrixResult.action
+  );
+  state.notifications.push(notification);
+  state.activeNotificationId = notification.uuid;
+  state.currentExplanation = 'Redfish fencing succeeded; Masakari notification created';
   state.phase = 'masakari-start';
 }
 
@@ -121,6 +143,10 @@ function finishNotification(state, failedCount) {
 export function stepSimulation(state) {
   state.clock += 1;
   state.warnings = explainWatcherContext(state);
+  const warning = fencingWarning(state);
+  if (warning) {
+    state.warnings.push(warning);
+  }
   state.matrixValidation = validateMatrix(state.sequence, state.matrix);
 
   if (state.phase === 'consul-observe') {
@@ -132,6 +158,22 @@ export function stepSimulation(state) {
 
   if (state.phase === 'health-evaluate') {
     evaluateHealthAndMaybeNotify(state);
+    const latestWarning = fencingWarning(state);
+    if (latestWarning && !state.warnings.includes(latestWarning)) {
+      state.warnings.push(latestWarning);
+    }
+    return state;
+  }
+
+  if (state.phase === 'fencing') {
+    const result = runRedfishFencing(state);
+    if (!result.ok) {
+      state.currentExplanation = `Redfish fencing failed; recovery blocked: ${result.error}`;
+      state.phase = 'done';
+      return state;
+    }
+
+    createRecoveryNotificationAfterFencing(state);
     return state;
   }
 

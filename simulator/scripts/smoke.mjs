@@ -65,6 +65,7 @@ const requiredUiMarkers = [
   'data-role="watcher-toggle"',
   'data-role="health-vector"',
   'Как пользоваться',
+  'Включите Redfish fencing',
   'Если нужно проверить другую policy',
   'class="list-note"',
   'Это меняет policy, а не состояние интерфейсов',
@@ -80,6 +81,12 @@ const requiredUiMarkers = [
   'сеть управления',
   'пользовательский трафик VM',
   'доступ к хранилищу',
+  '<summary>Fencing</summary>',
+  'data-role="fencing-toggle"',
+  'data-role="fencing-result"',
+  'driver redfish',
+  '<option value="unreachable" >unreachable</option>',
+  'Health нет данных -> Matrix нет данных -> Fencing disabled',
   '<details class="panel-section" open>',
   '<details class="panel-section">',
   '<summary>Masakari monitor</summary>',
@@ -91,6 +98,23 @@ const requiredUiMarkers = [
 for (const expected of requiredUiMarkers) {
   if (!renderedRoot.innerHTML.includes(expected)) {
     throw new Error(`rendered UI must contain ${expected}`);
+  }
+}
+
+if (renderedRoot.innerHTML.indexOf('<h3>Health vector</h3>') > renderedRoot.innerHTML.indexOf('<summary>Fencing</summary>')) {
+  throw new Error('Fencing panel must render below Health vector');
+}
+
+const redfishSuccessRoot = new FakeRoot();
+renderApp(redfishSuccessRoot, createSimulation('redfish-fencing-success'), () => {});
+
+for (const expected of [
+  'data-role="fencing-toggle" data-path="enabled" type="checkbox" checked',
+  'driver redfish',
+  '<option value="success" selected>success</option>'
+]) {
+  if (!redfishSuccessRoot.innerHTML.includes(expected)) {
+    throw new Error(`redfish fencing UI must contain ${expected}`);
   }
 }
 

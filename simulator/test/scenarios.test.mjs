@@ -14,7 +14,9 @@ test('scenario catalog contains required v1 presets', () => {
     'no-valid-destination',
     'reserved-host-recovery',
     'watcher-conflict',
-    'custom-matrix-policy'
+    'custom-matrix-policy',
+    'redfish-fencing-success',
+    'redfish-fencing-failed'
   ]);
 });
 
