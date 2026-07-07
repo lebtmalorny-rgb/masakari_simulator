@@ -24,7 +24,7 @@ Backend и установка зависимостей не нужны. Серв
 ## Как пользоваться
 
 1. Выберите сценарий в блоке `Сценарии`.
-2. В `Топология` переключайте интерфейсы compute-хоста между `up` и `down`.
+2. В `Топология` переключайте интерфейсы исходного compute-хоста между `up` и `down`. Destination-host интерфейсы сейчас read-only.
 3. В `Matrix` смотрите default или custom policy как список всех health vector в порядке `sequence: [manage, tenant, storage]`.
 4. В `Fencing` включите или выключите Redfish fencing и выберите ожидаемый результат Redfish-вызова.
 5. В `Health vector` смотрите текущий порядок `sequence: [manage, tenant, storage]`.

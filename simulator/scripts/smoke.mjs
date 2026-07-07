@@ -60,6 +60,9 @@ const requiredUiMarkers = [
   'data-role="step"',
   'data-role="topology"',
   'data-role="event-log"',
+  'data-role="interface-toggle" data-host="compute-1"',
+  'data-role="interface-readonly" data-host="compute-2"',
+  'destination interfaces are read-only',
   'data-role="matrix-toggle"',
   'data-role="config-number"',
   'data-role="watcher-toggle"',
@@ -117,6 +120,10 @@ if (renderedRoot.innerHTML.indexOf('<h3>Health vector</h3>') > renderedRoot.inne
 
 if (renderedRoot.innerHTML.includes('data-role="matrix-plane"')) {
   throw new Error('Matrix must not privilege one interface as a fixed plane');
+}
+
+if (renderedRoot.innerHTML.includes('data-role="interface-toggle" data-host="compute-2"')) {
+  throw new Error('Destination host interfaces must be read-only');
 }
 
 const redfishSuccessRoot = new FakeRoot();

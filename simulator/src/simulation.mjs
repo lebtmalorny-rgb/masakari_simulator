@@ -40,6 +40,10 @@ export function toggleInterface(state, hostName, layer) {
     throw new Error(`Unknown layer: ${layer}`);
   }
 
+  if (hostName !== state.activeHost) {
+    throw new Error('Only active host interfaces can be changed');
+  }
+
   host.interfaces[layer] = host.interfaces[layer] === 'up' ? 'down' : 'up';
   state.phase = 'consul-observe';
   state.currentExplanation = `${hostName}.${layer} switched to ${host.interfaces[layer]}`;

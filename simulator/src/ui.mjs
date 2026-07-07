@@ -126,7 +126,16 @@ function renderScenarioOptions(currentId) {
     .join('');
 }
 
-function renderHost(host) {
+function renderInterfaceControl(host, layer, status, isActiveHost) {
+  if (isActiveHost) {
+    return `<button class="interface-button ${status}" type="button" data-role="interface-toggle" data-host="${host.name}" data-layer="${layer}">${status}</button>`;
+  }
+
+  return `<span class="interface-state ${status}" data-role="interface-readonly" data-host="${host.name}" data-layer="${layer}">${status}</span>`;
+}
+
+function renderHost(host, activeHost) {
+  const isActiveHost = host.name === activeHost;
   const interfaces = Object.entries(host.interfaces)
     .map(([layer, status]) => `
       <div class="interface-row">
@@ -134,7 +143,7 @@ function renderHost(host) {
           <strong>${layer}</strong>
           <small>${interfaceDetail(layer).role}</small>
         </span>
-        <button class="interface-button ${status}" type="button" data-role="interface-toggle" data-host="${host.name}" data-layer="${layer}">${status}</button>
+        ${renderInterfaceControl(host, layer, status, isActiveHost)}
       </div>
     `)
     .join('');
@@ -155,6 +164,7 @@ function renderHost(host) {
         <span class="status-chip ${statusClass(host.novaServiceState)}">nova ${host.novaServiceState}</span>
       </div>
       <span class="status-chip ${host.masakariOnMaintenance ? 'warn' : 'ok'}">maintenance ${host.masakariOnMaintenance}</span>
+      ${isActiveHost ? '<span class="status-chip">active source host</span>' : '<span class="help-text">destination interfaces are read-only</span>'}
       <div class="stack">${interfaces}</div>
       <div class="stack">${vms}</div>
     </article>
@@ -452,7 +462,7 @@ export function renderApp(root, state, dispatch) {
     </section>
     <section class="panel topology-panel stack">
       <h2>Топология</h2>
-      <div class="topology" data-role="topology">${state.hosts.map(renderHost).join('')}</div>
+      <div class="topology" data-role="topology">${state.hosts.map((host) => renderHost(host, state.activeHost)).join('')}</div>
     </section>
     <section class="panel step-panel stack">
       <h2>Текущий шаг</h2>

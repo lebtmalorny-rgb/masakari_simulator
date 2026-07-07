@@ -50,6 +50,16 @@ test('toggleInterface changes host layer and reset restores preset', () => {
   assert.equal(reset.hosts.find((host) => host.name === 'compute-1').interfaces.storage, 'up');
 });
 
+test('toggleInterface rejects destination host interfaces', () => {
+  const state = createSimulation('healthy-baseline');
+
+  assert.throws(
+    () => toggleInterface(state, 'compute-2', 'storage'),
+    /Only active host interfaces can be changed/
+  );
+  assert.equal(state.hosts.find((host) => host.name === 'compute-2').interfaces.storage, 'up');
+});
+
 test('updating matrix can turn tenant-only-down into recovery', () => {
   const state = createSimulation('tenant-only-down');
   const row = state.matrix.find((rule) => rule.health.join(',') === 'up,down,up');
